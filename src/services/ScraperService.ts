@@ -1,4 +1,4 @@
-import { chromium } from "playwright";
+import { chromium, Page } from "playwright";
 
 interface ProductDetails {
   name: string;
@@ -17,11 +17,11 @@ class ScraperService {
   }
 
   private async safeExtractText(
-    page: any,
+    page: Page,
     selector: string
   ): Promise<string | null> {
     try {
-      await page.waitForSelector(selector, { timeout: 5000 });
+      await page.waitForSelector(selector, { timeout: 7000 });
       return await page.locator(selector).first().textContent();
     } catch (error) {
       console.warn(`[Scraper] Seletor de TEXTO não encontrado: ${selector}`);
@@ -30,12 +30,12 @@ class ScraperService {
   }
 
   private async safeExtractAttribute(
-    page: any,
+    page: Page,
     selector: string,
     attribute: string
   ): Promise<string | null> {
     try {
-      await page.waitForSelector(selector, { timeout: 5000 });
+      await page.waitForSelector(selector, { timeout: 7000 });
       return await page.locator(selector).first().getAttribute(attribute);
     } catch (error) {
       console.warn(`[Scraper] Seletor de ATRIBUTO não encontrado: ${selector}`);
@@ -49,7 +49,9 @@ class ScraperService {
     let browser = null;
     try {
       console.log(`[Scraper] Iniciando scrape para: ${url}`);
-      browser = await chromium.launch({ headless: true });
+      
+      browser = await chromium.launch({ headless: false });
+      
       const page = await browser.newPage();
 
       await page.setExtraHTTPHeaders({
@@ -58,26 +60,39 @@ class ScraperService {
         "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
       });
 
-      await page.goto(url, { waitUntil: "domcontentloaded" });
+      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20000 });
 
-      // Cada site é diferente.
-      // ir no site e achar o seletor CSS (id, class, data-testid)
-      // do nome, preço e imagem.
+      try {
+        const cookieButtonSelector = "#onetrust-accept-btn-handler, #sp-cc-accept";
+        await page.waitForSelector(cookieButtonSelector, { timeout: 5000 });
+        console.log("[Scraper] Pop-up de cookie encontrado. Clicando em 'Aceitar'.");
+        await page.click(cookieButtonSelector);
+        await page.waitForTimeout(1000); 
+      } catch (error) {
+        console.log("[Scraper] Pop-up de cookie não encontrado (ou já aceito).");
+      }
 
-      const SELECTOR_NOME = "h1[data-testid='product-name'], h1#productTitle";
-      const SELECTOR_PRECO =
-        "h4[data-testid='final-price'], span.a-price-whole";
-      const SELECTOR_IMAGEM =
-        "img.ImageSlide_slideImage__k2S13, img#landingImage";
+      let nameText = await page.title();
+      if (!nameText) {
+          throw new Error("Não foi possível encontrar o TÍTULO da página.");
+      }
+      nameText = nameText.split("|")[0].trim();
 
-      const nameText = await this.safeExtractText(page, SELECTOR_NOME);
-      if (!nameText)
-        throw new Error("Não foi possível encontrar o NOME do produto.");
+      const SELECTOR_PRECO = 
+        "h4[class*='text-secondary-500'], span.a-price-whole";
+        
+      let priceText = await this.safeExtractText(page, SELECTOR_PRECO);
 
-      const priceText = await this.safeExtractText(page, SELECTOR_PRECO);
+      if (!priceText) {
+          priceText = await this.safeExtractText(page, "span[data-a-color='base'] .a-offscreen");
+      }
+        
       if (!priceText)
         throw new Error("Não foi possível encontrar o PREÇO do produto.");
 
+      const SELECTOR_IMAGEM =
+        "div.swiper-slide-active img, img#landingImage";
+      
       const imageUrl = await this.safeExtractAttribute(
         page,
         SELECTOR_IMAGEM,
@@ -90,7 +105,6 @@ class ScraperService {
       const cleanedName = nameText.trim();
 
       console.log(`[Scraper] Sucesso: ${cleanedName} - R$ ${cleanedPrice}`);
-
       await browser.close();
 
       return {
