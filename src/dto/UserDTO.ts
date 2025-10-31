@@ -16,3 +16,11 @@ export interface UserWithoutPasswordDTO {
   created_at: Date;
   updated_at: Date;
 }
+
+export interface UserGetMeDTO {
+  id: number;
+  name: string;
+  email: string;
+  phone: string | null;
+  birth_date: Date;
+}

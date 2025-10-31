@@ -1,6 +1,10 @@
 import bcrypt from "bcryptjs";
 import { db } from "../database/connection";
-import { CreateUserDTO, UserWithoutPasswordDTO } from "../dto/UserDTO";
+import {
+  CreateUserDTO,
+  UserGetMeDTO,
+  UserWithoutPasswordDTO,
+} from "../dto/UserDTO";
 
 class UserService {
   async create({
@@ -34,6 +38,19 @@ class UserService {
     delete user.password_reset_expires;
 
     return user as UserWithoutPasswordDTO;
+  }
+
+  async findMe(id: number): Promise<UserGetMeDTO> {
+    const user = await db("users")
+      .select("id", "name", "email", "phone", "birth_date")
+      .where({ id })
+      .first();
+
+    if (!user) {
+      throw new Error("Usuário não encontrado.");
+    }
+
+    return user as UserGetMeDTO;
   }
 }
 
