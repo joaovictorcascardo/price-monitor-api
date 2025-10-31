@@ -1,13 +1,9 @@
 import express, { Request, Response } from "express";
+import { userRoutes } from "./routes/user.routes";
 
 const app = express();
-app.use(express.json());
 
-app.get("/", (req: Request, res: Response) => {
-  return res.json({
-    message: "API Price Monitor",
-    status: "ok",
-  });
-});
+app.use(express.json());
+app.use("/users", userRoutes);
 
 export { app };
