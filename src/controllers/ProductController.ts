@@ -13,6 +13,10 @@ class ProductController {
 
       return res.status(201).json(product);
     } catch (error: any) {
+      if (error.message.includes("Não foi possível extrair os dados")) {
+        return res.status(400).json({ error: error.message });
+      }
+
       console.error("Erro no ProductController (create):", error);
       return res
         .status(500)
