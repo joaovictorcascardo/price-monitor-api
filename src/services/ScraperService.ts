@@ -49,9 +49,9 @@ class ScraperService {
     let browser = null;
     try {
       console.log(`[Scraper] Iniciando scrape para: ${url}`);
-      
-      browser = await chromium.launch({ headless: false });
-      
+
+      browser = await chromium.launch({ headless: true });
+
       const page = await browser.newPage();
 
       await page.setExtraHTTPHeaders({
@@ -63,36 +63,43 @@ class ScraperService {
       await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20000 });
 
       try {
-        const cookieButtonSelector = "#onetrust-accept-btn-handler, #sp-cc-accept";
+        const cookieButtonSelector =
+          "#onetrust-accept-btn-handler, #sp-cc-accept";
         await page.waitForSelector(cookieButtonSelector, { timeout: 5000 });
-        console.log("[Scraper] Pop-up de cookie encontrado. Clicando em 'Aceitar'.");
+        console.log(
+          "[Scraper] Pop-up de cookie encontrado. Clicando em 'Aceitar'."
+        );
         await page.click(cookieButtonSelector);
-        await page.waitForTimeout(1000); 
+        await page.waitForTimeout(1000);
       } catch (error) {
-        console.log("[Scraper] Pop-up de cookie não encontrado (ou já aceito).");
+        console.log(
+          "[Scraper] Pop-up de cookie não encontrado (ou já aceito)."
+        );
       }
 
       let nameText = await page.title();
       if (!nameText) {
-          throw new Error("Não foi possível encontrar o TÍTULO da página.");
+        throw new Error("Não foi possível encontrar o TÍTULO da página.");
       }
       nameText = nameText.split("|")[0].trim();
 
-      const SELECTOR_PRECO = 
+      const SELECTOR_PRECO =
         "h4[class*='text-secondary-500'], span.a-price-whole";
-        
+
       let priceText = await this.safeExtractText(page, SELECTOR_PRECO);
 
       if (!priceText) {
-          priceText = await this.safeExtractText(page, "span[data-a-color='base'] .a-offscreen");
+        priceText = await this.safeExtractText(
+          page,
+          "span[data-a-color='base'] .a-offscreen"
+        );
       }
-        
+
       if (!priceText)
         throw new Error("Não foi possível encontrar o PREÇO do produto.");
 
-      const SELECTOR_IMAGEM =
-        "div.swiper-slide-active img, img#landingImage";
-      
+      const SELECTOR_IMAGEM = "div.swiper-slide-active img, img#landingImage";
+
       const imageUrl = await this.safeExtractAttribute(
         page,
         SELECTOR_IMAGEM,
@@ -105,6 +112,7 @@ class ScraperService {
       const cleanedName = nameText.trim();
 
       console.log(`[Scraper] Sucesso: ${cleanedName} - R$ ${cleanedPrice}`);
+
       await browser.close();
 
       return {
